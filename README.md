@@ -50,6 +50,21 @@ Shell and logs from TUI
 	•	Exit the alt-screen and open a real shell inside a container (exec)
 	•	Tail logs directly using Bubble Tea subprocess integration
 
+⸻
+
+🚀 Installation
+
+Install gmd with a single command:
+curl -sSfL https://raw.githubusercontent.com/kdruelle/gmd/main/install.sh | sh
+
+The installer automatically:
+	•	detects your OS and CPU architecture
+	•	fetches the latest GitHub release
+	•	verifies the SHA256 checksum
+	•	extracts the correct binary
+	•	installs it into /usr/local/bin
+
+⸻
 
 🧪 Roadmap
 	•	Popup confirmation boxes

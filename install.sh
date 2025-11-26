@@ -21,11 +21,9 @@ TAG=$(curl -s https://api.github.com/repos/$REPO/releases/latest | grep tag_name
 
 [ -z "$TAG" ] && echo "Impossible de trouver la version." && exit 1
 
-echo "→ Version : {$TAG}"
+echo "→ Version : ${TAG}"
 
-VERSION=$(echo "$TAG" | sed 's/^v//')
-
-ARCHIVE="${BINARY}_${VERSION}_${OS}_${ARCH}.tar.gz"
+ARCHIVE="${BINARY}_${TAG}_${OS}_${ARCH}.tar.gz"
 URL="https://github.com/$REPO/releases/download/$TAG/$ARCHIVE"
 CHECKSUM_URL="https://github.com/$REPO/releases/download/$TAG/checksums.txt"
 

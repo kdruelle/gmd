@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"runtime"
-	"strings"
 
 	"github.com/mouuff/go-rocket-update/pkg/provider"
 	"github.com/mouuff/go-rocket-update/pkg/updater"
@@ -21,7 +20,7 @@ var updateCmd = &cobra.Command{
 		u := &updater.Updater{
 			Provider: &provider.Github{
 				RepositoryURL: "github.com/kdruelle/gmd",
-				ArchiveName:   fmt.Sprintf("gmd_%s_%s_%s.tar.gz", strings.TrimPrefix(version, "v"), runtime.GOOS, runtime.GOARCH),
+				ArchiveName:   fmt.Sprintf("gmd_%s_%s_%s.tar.gz", version, runtime.GOOS, runtime.GOARCH),
 			},
 			ExecutableName: "gmd",
 			Version:        version,
@@ -30,6 +29,6 @@ var updateCmd = &cobra.Command{
 		if _, err := u.Update(); err != nil {
 			fmt.Println(err)
 		}
-		
+
 	},
 }

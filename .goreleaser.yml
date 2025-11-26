@@ -9,7 +9,7 @@ builds:
     ldflags:
       - >
         -X github.com/kdruelle/gmd/cmd.version={{ .Version }}
-        -X github.com/kdruelle/gmd/cmd.buildDate={{ .Date }}
+        -X github.com/kdruelle/gmd/cmd.buildDate={{ .Date | date "02 Jan 2006" }}
     goos:
       - linux
       - darwin
@@ -19,7 +19,7 @@ builds:
 
 archives:
   - format: tar.gz
-    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .Binary }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     #files:
       #- LICENSE
       #- README.md
