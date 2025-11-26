@@ -7,24 +7,9 @@ import (
 	"github.com/docker/docker/api/types/image"
 )
 
-type Image struct {
-	ID          string
-	RepoTags    []string
-	RepoDigests []string
-	Size        int64
-	ParentID    string
-}
-
-func (img Image) Tag() string {
-	if len(img.RepoTags) > 0 {
-		return img.RepoTags[0] // Portainer fait pareil : premier tag = dominant
-	}
-	if len(img.RepoDigests) > 0 {
-		return img.RepoDigests[0]
-	}
-	return img.ID // fallback horrible mais nécessaire
-}
-
+// DeleteImage deletes an image from the Docker daemon.
+// It does not force the deletion of the image, and it does prune children.
+// The function returns an error if the deletion fails.
 func (c *Client) DeleteImage(ctx context.Context, imageID string) error {
 	_, err := c.cli.ImageRemove(ctx, imageID, image.RemoveOptions{
 		Force:         false,
@@ -33,6 +18,9 @@ func (c *Client) DeleteImage(ctx context.Context, imageID string) error {
 	return err
 }
 
+// PullImageWithProgress pulls an image from the Docker Hub and prints
+// the progress of the pull to the given function.
+// The function returns an error if the pull fails.
 func (c *Client) PullImageWithProgress(ctx context.Context, imageRef string, progress func(map[string]interface{})) (err error) {
 	reader, err := c.cli.ImagePull(ctx, imageRef, image.PullOptions{})
 	if err != nil {
@@ -54,10 +42,20 @@ func (c *Client) PullImageWithProgress(ctx context.Context, imageRef string, pro
 	return nil
 }
 
+// ImageList returns a list of images on the Docker daemon.
+// The function returns an error if the list of images cannot be retrieved.
+// The list of images includes all images on the daemon, including intermediate images.
+// The list of images is sorted by image name.
 func (c *Client) ImageList() ([]image.Summary, error) {
 	return c.cli.ImageList(context.Background(), image.ListOptions{All: true})
 }
 
+// ImageHistory returns the history of an image on the Docker daemon.
+// The function returns a slice of image.HistoryResponseItem, where each item
+// represents a layer in the image's history. The slice is sorted by
+// creation time.
+// The function returns an error if the history of the image cannot be
+// retrieved.
 func (c *Client) ImageHistory(imageID string) ([]image.HistoryResponseItem, error) {
 	return c.cli.ImageHistory(context.Background(), imageID)
 }

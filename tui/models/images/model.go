@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kdruelle/gmd/docker/cache"
 	"github.com/kdruelle/gmd/docker/client"
+	"github.com/kdruelle/gmd/docker/types"
 	style "github.com/kdruelle/gmd/tui/styles"
 )
 
@@ -140,14 +141,14 @@ func (m *Model) applyFilter() {
 
 	log.Printf("image applying filter")
 
-	var images []client.Image
+	var images []types.Image
 	if m.unused {
 		images = m.cache.ImagesUnused()
 	} else {
 		images = m.cache.Images()
 	}
 
-	slices.SortFunc(images, func(a, b client.Image) int {
+	slices.SortFunc(images, func(a, b types.Image) int {
 		return strings.Compare(a.Tag(), b.Tag())
 	})
 

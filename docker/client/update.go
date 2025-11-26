@@ -14,6 +14,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
+// CheckUpdate checks if the given container needs to be updated.
+// It returns true if an update is needed, false otherwise.
+// It also returns an error if an error occurs during the check.
 func (c *Client) CheckUpdate(containerID string) (bool, error) {
 
 	container, err := c.ContainerInspect(containerID)

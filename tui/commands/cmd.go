@@ -5,32 +5,28 @@ import (
 	"github.com/kdruelle/gmd/docker/client"
 )
 
-func UpdateContainerCmd(c client.Container) tea.Cmd {
+func SwitchPageCmd(modelCreate func() tea.Model) tea.Cmd {
 	return func() tea.Msg {
-		return UpdateContainerMsg{Container: c}
+		var model tea.Model = nil
+		if modelCreate != nil {
+			model = modelCreate()
+		}
+		return SwitchPageMsg{Model: model}
 	}
 }
 
-func BackCmd() tea.Cmd {
+func ContainerCmd(cli *client.Client, action Action, id string) tea.Cmd {
 	return func() tea.Msg {
-		return BackMsg{}
+		msg := ContainerActionMsg{ContainerID: id, Action: action}
+
+		switch action {
+		case StartContainerAction:
+			msg.Err = cli.StartContainer(id)
+		case StopContainerAction:
+			msg.Err = cli.StopContainer(id)
+		case RestartContainerAction:
+			msg.Err = cli.RestartContainer(id)
+		}
+		return msg
 	}
 }
-
-// func StartPullCmd(c chan PullProgressMsg) tea.Cmd {
-// 	return func() tea.Msg {
-// 		return PullStartedMsg{
-// 			Channel: c,
-// 		}
-// 	}
-// }
-
-// func PullImageCmd(ch <-chan PullProgressMsg) tea.Cmd {
-// 	return func() tea.Msg {
-// 		msg, ok := <-ch
-// 		if !ok {
-// 			return PullCompleteMsg{}
-// 		}
-// 		return msg
-// 	}
-// }

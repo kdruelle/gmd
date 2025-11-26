@@ -4,12 +4,12 @@ import (
 	"fmt"
 
 	"github.com/dustin/go-humanize"
-	"github.com/kdruelle/gmd/docker"
+	"github.com/kdruelle/gmd/docker/types"
 )
 
-type ImageItem docker.Image
+type ImageItem types.Image
 
-func (i ImageItem) Title() string { return docker.Image(i).Tag() }
+func (i ImageItem) Title() string { return types.Image(i).Tag() }
 func (i ImageItem) Description() string {
 	return fmt.Sprintf("%s - %s", i.ID, humanize.Bytes(uint64(i.Size)))
 }

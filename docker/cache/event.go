@@ -21,6 +21,9 @@ type Event struct {
 	ActorID   string
 }
 
+// Events returns a channel of Event objects.
+// The channel is populated with events from the Docker daemon and
+// is used to notify the UI of changes to the container and image lists.
 func (c *Cache) Events() <-chan Event {
 	return c.events
 }

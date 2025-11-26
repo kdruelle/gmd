@@ -6,8 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/docker/docker/api/types/container"
-	"github.com/kdruelle/gmd/docker"
-	"github.com/kdruelle/gmd/docker/client"
+	"github.com/kdruelle/gmd/docker/types"
 	style "github.com/kdruelle/gmd/tui/styles"
 )
 
@@ -15,6 +14,7 @@ type ContainerItem struct {
 	id           string
 	name         string
 	state        container.ContainerState
+	actionState  container.ContainerState
 	update       *bool
 	content      string
 	statsContent string
@@ -22,7 +22,7 @@ type ContainerItem struct {
 	show bool
 }
 
-func NewContainerItem(dc client.Container) ContainerItem {
+func NewContainerItem(dc types.Container) ContainerItem {
 	c := ContainerItem{
 		id:    dc.ID,
 		name:  dc.Name,
@@ -65,24 +65,24 @@ func (c *ContainerItem) RenderContent() {
 	c.content = lipgloss.JoinHorizontal(lipgloss.Center, col1, " ", col2)
 }
 
-func (c *ContainerItem) RenderStats(stats container.StatsResponse) {
-	if stats.ID == "" {
-		c.statsContent = "CPU[ -- ]   RAM[ -- ]"
-	}
+// func (c *ContainerItem) RenderStats(stats container.StatsResponse) {
+// 	if stats.ID == "" {
+// 		c.statsContent = "CPU[ -- ]   RAM[ -- ]"
+// 	}
 
-	cpuPct := docker.CPUPercent(stats)
-	//memPct := docker.MemoryPercent(c.Stats)
-	usedMem := stats.MemoryStats.Usage
-	limitMem := stats.MemoryStats.Limit
+// 	cpuPct := docker.CPUPercent(stats)
+// 	//memPct := docker.MemoryPercent(c.Stats)
+// 	usedMem := stats.MemoryStats.Usage
+// 	limitMem := stats.MemoryStats.Limit
 
-	cpuBar := htopCpuBar(cpuPct, 20) // 20 = largeur de la barre
-	memBar := htopMemBar(usedMem, limitMem, 20)
+// 	cpuBar := htopCpuBar(cpuPct, 20) // 20 = largeur de la barre
+// 	memBar := htopMemBar(usedMem, limitMem, 20)
 
-	c.statsContent = lipgloss.JoinHorizontal(
-		lipgloss.Left,
-		cpuBar, "   ", memBar,
-	)
-}
+// 	c.statsContent = lipgloss.JoinHorizontal(
+// 		lipgloss.Left,
+// 		cpuBar, "   ", memBar,
+// 	)
+// }
 
 func (c ContainerItem) Name() string {
 	title := strings.TrimPrefix(c.name, "/")
@@ -98,6 +98,15 @@ func (c ContainerItem) ShortID() string {
 }
 
 func (c ContainerItem) Status() string {
+
+	if c.actionState != "" {
+		switch c.actionState {
+		case container.StateRestarting:
+			return ContainerRestartingState
+		}
+		return c.actionState
+	}
+
 	switch c.state {
 	case container.StateRunning:
 		return ContainerRuningState

@@ -8,12 +8,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kdruelle/gmd/docker/client"
+	"github.com/kdruelle/gmd/docker/types"
 	"github.com/kdruelle/gmd/tui/commands"
 	"github.com/kdruelle/gmd/tui/controllers/containerupdate"
 )
 
 type Model struct {
-	container  client.Container
+	container  types.Container
 	cli        *client.Client
 	controller *containerupdate.Controller
 	screenW    int
@@ -34,7 +35,7 @@ var keyMap = &listKeyMap{
 	),
 }
 
-func New(c client.Container, client *client.Client) Model {
+func New(c types.Container, client *client.Client) Model {
 	controller := containerupdate.New(client)
 	m := Model{
 		container:  c,
@@ -77,7 +78,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, keyMap.returnKey):
 			if m.completed {
-				return m, commands.BackCmd()
+				return m, commands.SwitchPageCmd(nil)
 			}
 		}
 

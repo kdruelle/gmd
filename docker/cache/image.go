@@ -5,22 +5,23 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/kdruelle/gmd/docker/client"
+	"github.com/kdruelle/gmd/docker/types"
 )
 
-func (c *Cache) Images() []client.Image {
+// Images returns the list of images from the cache.
+// The function locks the cache for reading and returns a copy of the underlying data, so it can be safely used without taking a write lock on the cache.
+func (c *Cache) Images() []types.Image {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	out := make([]client.Image, len(c.images))
+	out := make([]types.Image, len(c.images))
 	i := 0
 	for _, img := range c.images {
 		out[i] = *img
 		i++
 	}
 
-	// Même tri que Portainer : les taggées d'abord
-	slices.SortFunc(out, func(a, b client.Image) int {
+	slices.SortFunc(out, func(a, b types.Image) int {
 		tagA := a.Tag()
 		tagB := b.Tag()
 		return strings.Compare(tagA, tagB)
@@ -29,16 +30,25 @@ func (c *Cache) Images() []client.Image {
 	return out
 }
 
-func (c *Cache) Image(id string) (client.Image, error) {
+// Image returns the image with the given ID from the cache.
+// The function locks the cache for reading and returns a copy of the underlying data, so it can be safely used without taking a write lock on the cache.
+// If the image is not found, ErrImageNotFound is returned.
+// If the cache is empty, an empty slice is returned.
+func (c *Cache) Image(id string) (types.Image, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	if c, ok := c.images[id]; ok {
 		return *c, nil
 	}
-	return client.Image{}, ErrImageNotFound
+	return types.Image{}, ErrImageNotFound
 }
 
-func (c *Cache) ImagesUnused() []client.Image {
+// ImagesUnused returns the list of unused images from the cache.
+// An image is considered unused if no container is using it.
+// The function locks the cache for reading and returns a copy of the underlying data, so it can be safely used without taking a write lock on the cache.
+// The returned slice is sorted by image name.
+// If the cache is empty, an empty slice is returned.
+func (c *Cache) ImagesUnused() []types.Image {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -51,7 +61,7 @@ func (c *Cache) ImagesUnused() []client.Image {
 		}
 	}
 
-	out := make([]client.Image, 0, len(c.images))
+	out := make([]types.Image, 0, len(c.images))
 	log.Println("DEBUG === images ===")
 	for _, img := range c.images {
 		log.Printf("img %s RepoDigests=%v", img.ID, img.RepoDigests)
@@ -61,8 +71,8 @@ func (c *Cache) ImagesUnused() []client.Image {
 		}
 
 	}
-	// Même tri que Portainer : les taggées d'abord
-	slices.SortFunc(out, func(a, b client.Image) int {
+
+	slices.SortFunc(out, func(a, b types.Image) int {
 		tagA := a.Tag()
 		tagB := b.Tag()
 		return strings.Compare(tagA, tagB)
@@ -85,7 +95,7 @@ func (c *Cache) refreshImage(id string) {
 	// faut retrouver l’image par ID
 	for _, img := range imgs {
 		if img.ID == id {
-			c.images[id] = &client.Image{
+			c.images[id] = &types.Image{
 				ID:          img.ID,
 				RepoTags:    img.RepoTags,
 				RepoDigests: img.RepoDigests,
@@ -98,19 +108,27 @@ func (c *Cache) refreshImage(id string) {
 
 }
 
-func (c *Cache) snapshotImages() []*client.Image {
+// snapshotImages returns a snapshot of the images in the cache.
+// The function first lists all images with the cli.ImageList() function,
+// then creates a map of the images by ID. It then iterates over the list
+// of images and adds each image to the map, ignoring any images that
+// already exist in the map.
+// Next, it iterates over the list of images again and updates the
+// parents of each image by looking up the parent ID in the map.
+// Finally, it flattens the map into a slice and returns the slice.
+func (c *Cache) snapshotImages() []*types.Image {
 	list, err := c.cli.ImageList()
 	if err != nil {
 		panic(err)
 	}
 
-	out := make(map[string]*client.Image)
+	out := make(map[string]*types.Image)
 
 	addImg := func(id string, tags []string, digs []string, size int64, parent string) {
 		if _, ok := out[id]; ok {
 			return
 		}
-		out[id] = &client.Image{
+		out[id] = &types.Image{
 			ID:          id,
 			RepoTags:    tags,
 			RepoDigests: digs,
@@ -119,12 +137,12 @@ func (c *Cache) snapshotImages() []*client.Image {
 		}
 	}
 
-	// 1. Ajout des images "normales"
+	// 1. Add stadards images
 	for _, img := range list {
 		addImg(img.ID, img.RepoTags, img.RepoDigests, img.Size, img.ParentID)
 	}
 
-	// 2. Ajout des parents via history
+	// 2. Add parents via history
 	for _, img := range list {
 		history, err := c.cli.ImageHistory(img.ID)
 		if err != nil {
@@ -138,14 +156,14 @@ func (c *Cache) snapshotImages() []*client.Image {
 			}
 
 			if _, ok := out[layer.ID]; !ok {
-				// Pas d’infos de tag → c’est un layer intermédiaire
+				// No tag info → this is an intermediate layer
 				addImg(layer.ID, []string{}, []string{}, layer.Size, "")
 			}
 		}
 	}
 
-	// 3. Flatten en slice
-	result := make([]*client.Image, 0, len(out))
+	// 3. Flatten into slice
+	result := make([]*types.Image, 0, len(out))
 	for _, img := range out {
 		result = append(result, img)
 	}

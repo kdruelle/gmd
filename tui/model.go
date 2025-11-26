@@ -7,7 +7,6 @@ import (
 	"github.com/kdruelle/gmd/tui/commands"
 	"github.com/kdruelle/gmd/tui/componants"
 	"github.com/kdruelle/gmd/tui/models/containers"
-	"github.com/kdruelle/gmd/tui/models/containerupdate"
 	"github.com/kdruelle/gmd/tui/models/maintab"
 )
 
@@ -64,36 +63,35 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.screenHeight = msg.Height
 
 	case tea.KeyMsg:
-
 		if searchable, ok := m.stack[len(m.stack)-1].(componants.Searchable); ok && searchable.IsSearching() {
 			var cmd tea.Cmd
 			m.stack[len(m.stack)-1], cmd = m.stack[len(m.stack)-1].Update(msg)
 			return m, cmd
 		}
-
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
+
 	case cache.Event:
 		var cmd tea.Cmd
 		m.stack[0], cmd = m.stack[0].Update(msg)
-
 		return m, tea.Batch(WaitDockerEvent(m.dockerCache.Events()), cmd)
-	case commands.UpdateContainerMsg:
-		u := containerupdate.New(msg.Container, m.cli)
-		cmd := u.Init()
-		m.stack = append(m.stack, u)
-		return m, tea.Batch( /*tea.ExitAltScreen,*/ cmd, SendResize(m.screeWidth, m.screenHeight))
+
 	case containers.ContainerUpdateMsg:
 		var cmd tea.Cmd
 		m.stack[0], cmd = m.stack[0].Update(msg)
 		return m, cmd
-	case commands.BackMsg:
-		if len(m.stack) > 1 {
+		
+	case commands.SwitchPageMsg:
+		model := msg.Model
+		if model == nil {
 			m.stack = m.stack[:len(m.stack)-1] // pop
+			return m, nil
 		}
-		return m, nil //tea.EnterAltScreen
+		cmd := model.Init()
+		m.stack = append(m.stack, model)
+		return m, tea.Batch( /*tea.ExitAltScreen,*/ cmd, SendResize(m.screeWidth, m.screenHeight))
 	}
 
 	top := m.stack[len(m.stack)-1]

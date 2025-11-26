@@ -1,13 +1,24 @@
 package commands
 
-import (
-	"github.com/kdruelle/gmd/docker/client"
+import tea "github.com/charmbracelet/bubbletea"
+
+type SwitchPageMsg struct {
+	Model tea.Model
+}
+
+type Action string
+
+const (
+	StartContainerAction   Action = "start"
+	StopContainerAction    Action = "stop"
+	RestartContainerAction Action = "restart"
 )
 
-type BackMsg struct{}
-
-type UpdateContainerMsg struct {
-	Container client.Container
+type ContainerActionMsg struct {
+	ContainerID string
+	Action      Action
+	Update      bool
+	Err         error
 }
 
 // type PullStartedMsg struct {

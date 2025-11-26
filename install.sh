@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 set -e
 
-REPO="kdruelle/monapp"
-BINARY="monapp"
+REPO="kdruelle/gmd"
+BINARY="gmd"
 INSTALL_DIR="/usr/local/bin"
 
 echo "→ Détection OS/ARCH…"
@@ -21,7 +21,11 @@ TAG=$(curl -s https://api.github.com/repos/$REPO/releases/latest | grep tag_name
 
 [ -z "$TAG" ] && echo "Impossible de trouver la version." && exit 1
 
-ARCHIVE="${BINARY}_${OS}_${ARCH}.tar.gz"
+echo "→ Version : {$TAG}"
+
+VERSION=$(echo "$TAG" | sed 's/^v//')
+
+ARCHIVE="${BINARY}_${VERSION}_${OS}_${ARCH}.tar.gz"
 URL="https://github.com/$REPO/releases/download/$TAG/$ARCHIVE"
 CHECKSUM_URL="https://github.com/$REPO/releases/download/$TAG/checksums.txt"
 

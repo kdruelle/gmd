@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/kdruelle/gmd/docker/client"
+	"github.com/kdruelle/gmd/docker/types"
 	style "github.com/kdruelle/gmd/tui/styles"
 )
 
@@ -48,13 +49,13 @@ func (c *Controller) GetLines() []string {
 	return c.lines
 }
 
-func (c *Controller) StartUpdate(container client.Container) {
+func (c *Controller) StartUpdate(container types.Container) {
 	c.order = []string{}
 	c.layers = make(map[string]string)
 	go c.updateContainer(container)
 }
 
-func (c *Controller) updateContainer(container client.Container) {
+func (c *Controller) updateContainer(container types.Container) {
 
 	done := make(chan error)
 	defer close(done)
@@ -106,7 +107,7 @@ func (c *Controller) updateContainer(container client.Container) {
 		return
 	}
 
-	containerConfig, err := c.cli.GetContainerRawConfig(container.ID)
+	containerConfig, err := c.cli.ContainerInspect(container.ID)
 	if err != nil {
 		log.Printf("Error get config for container %s : %v", container.ID, err)
 		c.m.Lock()

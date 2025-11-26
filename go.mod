@@ -11,6 +11,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/google/go-containerregistry v0.20.6
 	github.com/hashicorp/go-version v1.7.0
+	github.com/mouuff/go-rocket-update v1.5.6
 	github.com/spf13/cobra v1.10.1
 )
 
