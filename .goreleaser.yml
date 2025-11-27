@@ -1,0 +1,40 @@
+project_name: gmd
+
+builds:
+  - id: gmd
+    main: .
+    binary: gmd
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - >
+        -X github.com/kdruelle/gmd/cmd.version={{ .Version }}
+        -X github.com/kdruelle/gmd/cmd.buildDate={{ .Date }}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    files:
+      #- LICENSE
+      - README.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+release:
+  github:
+    owner: kdruelle
+    name: gmd
+
+# changelog:
+#   sort: asc
+#   filters:
+#     exclude:
+#       - '^docs:'
+#       - '^test:'
+

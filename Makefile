@@ -22,7 +22,7 @@ debug: $(BUILD_DIR)
 	@EXT=""
 	$(eval EXT=$(shell if [ "$(word 1,$(subst -, ,$@))" = "windows" ]; then echo .exe; fi))
 	@echo "Building $@ with extension $(EXT)..."
-	go build -o $(APP_NAME)$(EXT) -gcflags=all=-d=checkptr -ldflags '-X "main.version=${VERSION}" -X "main.buildTime=${BUILDTIME}"' ./
+	go build -o $(APP_NAME)$(EXT) -gcflags=all=-d=checkptr -ldflags '-X "github.com/kdruelle/gmd/cmd.version=${VERSION}" -X "github.com/kdruelle/gmd/cmd.buildDate=${BUILDTIME}"' ./
 
 releases: clean
 	@for t in $(PLATFORMS); do \
@@ -34,7 +34,7 @@ $(PLATFORMS): $(BUILD_DIR)
 	@EXT=""
 	$(eval EXT=$(shell if [ "$(word 1,$(subst -, ,$@))" = "windows" ]; then echo .exe; fi))
 	@echo "Building $@ with extension $(EXT)..."
-	GOOS=$(word 1,$(subst -, ,$@)) GOARCH=$(word 2,$(subst -, ,$@)) CGO_ENABLED=0 go build -o $(BUILD_DIR)/$(APP_NAME)-$@-$(VERSION)/$(APP_NAME)$(EXT) -trimpath -ldflags '-s -w -X "main.version=${VERSION}" -X "main.buildTime=${BUILDTIME}"' ./
+	GOOS=$(word 1,$(subst -, ,$@)) GOARCH=$(word 2,$(subst -, ,$@)) CGO_ENABLED=0 go build -o $(BUILD_DIR)/$(APP_NAME)-$@-$(VERSION)/$(APP_NAME)$(EXT) -trimpath -ldflags '-s -w -X "cmd.version=${VERSION}" -X "cmd.buildTime=${BUILDTIME}"' ./
 
 $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
@@ -57,7 +57,7 @@ lint_install: bin
 
 
 ci:
-	gox -osarch="linux/amd64 linux/386 linux/arm darwin/amd64 darwin/386 windows/amd64 windows/386" -output "./build/sslcap-${VERSION}-{{.OS}}-{{.Arch}}.bin" -ldflags '-s -w -X "main.version=${VERSION}" -X "main.buildTime=${BUILDTIME}"'
+	gox -osarch="linux/amd64 linux/386 linux/arm darwin/amd64 darwin/386 windows/amd64 windows/386" -output "./build/sslcap-${VERSION}-{{.OS}}-{{.Arch}}.bin" -ldflags '-s -w -X "cmd.version=${VERSION}" -X "cmd.buildTime=${BUILDTIME}"'
 	@mkdir -p dist
 	@export SSLCAP_VERSION=${VERSION}; ./release.sh
 

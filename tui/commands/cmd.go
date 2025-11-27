@@ -2,10 +2,10 @@ package commands
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/kdruelle/gmd/docker"
+	"github.com/kdruelle/gmd/docker/client"
 )
 
-func UpdateContainerCmd(c docker.Container) tea.Cmd {
+func UpdateContainerCmd(c client.Container) tea.Cmd {
 	return func() tea.Msg {
 		return UpdateContainerMsg{Container: c}
 	}

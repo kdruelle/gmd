@@ -2,7 +2,8 @@ package containers
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/kdruelle/gmd/docker"
+	"github.com/kdruelle/gmd/docker/client"
+	"github.com/kdruelle/gmd/tui/controllers/containerstats"
 )
 
 type LoadedMsg struct {
@@ -16,9 +17,15 @@ type ContainerActionMsg struct {
 	Err         error
 }
 
+type ContainerUpdateMsg struct {
+	ContainerID string
+	Update      bool
+	Err         error
+}
+
 func (m Model) FetchCmd() tea.Cmd {
 	return func() tea.Msg {
-		containers := m.client.Containers()
+		containers := m.cache.Containers()
 		containersItems := make([]ContainerItem, len(containers))
 		for i, cont := range containers {
 			containersItems[i] = NewContainerItem(cont)
@@ -27,18 +34,31 @@ func (m Model) FetchCmd() tea.Cmd {
 	}
 }
 
-func StartContainerCmd(clien *docker.Monitor, id string) tea.Cmd {
+func StartContainerCmd(cli *client.Client, id string) tea.Cmd {
 	return func() tea.Msg {
 		msg := ContainerActionMsg{ContainerID: id, Action: "start"}
-		msg.Err = clien.StartContainer(id)
+		msg.Err = cli.StartContainer(id)
 		return msg
 	}
 }
 
-func RestartContainerCmd(clien *docker.Monitor, id string) tea.Cmd {
+func RestartContainerCmd(cli *client.Client, id string) tea.Cmd {
 	return func() tea.Msg {
 		msg := ContainerActionMsg{ContainerID: id, Action: "restart"}
-		msg.Err = clien.RestartContainer(id)
+		msg.Err = cli.RestartContainer(id)
 		return msg
+	}
+}
+
+func CheckContainerUpdate(cli *client.Client, id string) tea.Cmd {
+	return func() tea.Msg {
+		update, err := cli.CheckUpdate(id)
+		return ContainerUpdateMsg{ContainerID: id, Update: update, Err: err}
+	}
+}
+
+func WaitStatsEvent(ch <-chan containerstats.StatsMsg) tea.Cmd {
+	return func() tea.Msg {
+		return <-ch
 	}
 }

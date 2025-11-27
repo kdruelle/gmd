@@ -11,17 +11,22 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/docker/docker/api/types/container"
-	"github.com/kdruelle/gmd/docker"
+	"github.com/kdruelle/gmd/docker/cache"
+	"github.com/kdruelle/gmd/docker/client"
 	"github.com/kdruelle/gmd/tui/commands"
+	"github.com/kdruelle/gmd/tui/controllers/containerstats"
 	style "github.com/kdruelle/gmd/tui/styles"
 )
 
 type Model struct {
-	client *docker.Monitor
-	list   list.Model
-	loaded bool
-	status string
-	all    bool
+	cli                   *client.Client
+	cache                 *cache.Cache
+	list                  list.Model
+	loaded                bool
+	status                string
+	all                   bool
+	statsController       *containerstats.Controller
+	checkUpdateInProgress map[string]struct{}
 }
 
 type listKeyMap struct {
@@ -60,7 +65,7 @@ var keyMap = &listKeyMap{
 	),
 }
 
-func New(client *docker.Monitor) Model {
+func New(cli *client.Client, cache *cache.Cache) Model {
 
 	items := []list.Item{}
 
@@ -77,16 +82,23 @@ func New(client *docker.Monitor) Model {
 		}
 	}
 
-	return Model{
-		client: client,
-		list:   l,
-		all:    false,
+	m := Model{
+		cli:                   cli,
+		cache:                 cache,
+		list:                  l,
+		all:                   false,
+		checkUpdateInProgress: make(map[string]struct{}),
 		//imgs:   images,
 	}
+
+	m.statsController = containerstats.New(cli)
+	//m.statsController.Start()
+
+	return m
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return tea.Batch(WaitStatsEvent(m.statsController.Events()))
 }
 
 func (m Model) IsSearching() bool {
@@ -95,16 +107,9 @@ func (m Model) IsSearching() bool {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
-	switch msg := msg.(type) {
+	var cmds []tea.Cmd
 
-	case LoadedMsg:
-		if msg.Err != nil {
-			m.status = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render(msg.Err.Error())
-			return m, nil
-		}
-		m.loaded = true
-		m.applyFilter()
-		return m, nil
+	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
 		m.list.SetSize(msg.Width, msg.Height-4)
@@ -113,8 +118,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, keyMap.toggleAll):
-			m.all = !m.all
-			m.applyFilter()
+			m.ToggleAll()
 			return m, nil
 
 		case key.Matches(msg, keyMap.showLogs):
@@ -125,19 +129,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keyMap.restartContainer):
 			if c, ok := m.list.SelectedItem().(ContainerItem); ok && !slices.Contains([]string{container.StateRunning, container.StateRestarting}, c.state) {
-				return m, RestartContainerCmd(m.client, c.id)
+				return m, RestartContainerCmd(m.cli, c.id)
 			}
 			return m, nil
 
 		case key.Matches(msg, keyMap.startContainer):
 			if c, ok := m.list.SelectedItem().(ContainerItem); ok && !slices.Contains([]string{container.StateRunning, container.StateRestarting}, c.state) {
-				return m, StartContainerCmd(m.client, c.id)
+				return m, StartContainerCmd(m.cli, c.id)
 			}
 			return m, nil
 		case key.Matches(msg, keyMap.updateContainer):
 			if c, ok := m.list.SelectedItem().(ContainerItem); ok {
-				if c.update {
-					c, _ := m.client.Container(c.id)
+				if c.update != nil && *c.update {
+					c, _ := m.cache.Container(c.id)
 					return m, commands.UpdateContainerCmd(c)
 				}
 			}
@@ -148,29 +152,56 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return nil
 			})
 		}
-	case docker.Event:
-		if msg.EventType == docker.ContainerEventType {
+	case cache.Event:
+		if msg.EventType == cache.ContainersLoadedEventType {
 			if !m.loaded {
 				m.loaded = true
 			}
 			log.Printf("received container event %+v", msg)
-			m.applyFilter()
-		} else if msg.EventType == docker.ContainerStatsEventType {
-			if !m.loaded {
-				return m, nil
-			}
-			log.Printf("received container stats event %+v", msg)
-			m.applyFilter()
+			cmds = append(cmds, m.initialLoad())
 		}
+		if msg.EventType == cache.ContainerEventType {
+			if m.loaded {
+				log.Printf("received container event %+v", msg)
+				cmds = append(cmds, m.updateContainer(msg))
+			}
+
+		}
+	case ContainerUpdateMsg:
+		log.Printf("received container update event %+v", msg)
+		if msg.Err == nil {
+			for i, c := range m.list.Items() {
+				if container, ok := c.(ContainerItem); ok && container.id == msg.ContainerID {
+					b := msg.Update
+					container.update = &b
+					container.RenderContent()
+					m.list.SetItem(i, container)
+					break
+				}
+			}
+		} else {
+			log.Printf("error checking update for container %s: %s", msg.ContainerID, msg.Err)
+		}
+		delete(m.checkUpdateInProgress, msg.ContainerID)
 	case ContainerActionMsg:
 		if msg.Err != nil {
 			m.status = style.DangerItem.Render(msg.Err.Error())
 		}
+	case containerstats.StatsMsg:
+		for i, c := range m.list.Items() {
+			if container, ok := c.(ContainerItem); ok && container.id == msg.ID {
+				container.RenderStats(msg.Stats)
+				m.list.SetItem(i, container)
+				break
+			}
+		}
+		return m, WaitStatsEvent(m.statsController.Events())
 	}
 
 	newList, cmd := m.list.Update(msg)
+	cmds = append(cmds, cmd)
 	m.list = newList
-	return m, cmd
+	return m, tea.Batch(cmds...)
 }
 
 func (m Model) View() string {
@@ -184,55 +215,89 @@ func (m Model) View() string {
 	)
 }
 
-func (m *Model) applyFilter() {
+func (m *Model) initialLoad() tea.Cmd {
 
-	var containers = m.client.Containers()
+	var containers = m.cache.Containers()
 
-	if !m.all {
-		var items = make([]docker.Container, 0, len(containers))
-		for _, item := range containers {
-			if item.State.Running || item.State.Restarting {
-				items = append(items, item)
-			}
-		}
-		containers = items
-	}
+	var cmds = make([]tea.Cmd, 0, len(containers))
 
-	slices.SortFunc(containers, func(a, b docker.Container) int {
+	slices.SortFunc(containers, func(a, b client.Container) int {
 		return strings.Compare(a.Name, b.Name)
 	})
-	// if m.unused {
-	// 	images = m.client.ImagesUnused()
-	// } else {
-	// 	images = m.client.Images()
-	// }
 
 	itemList := make([]list.Item, 0, len(containers))
 	for _, item := range containers {
-
-		itemList = append(itemList, NewContainerItem(item))
-
+		container := NewContainerItem(item)
+		if m.all {
+			container.show = true
+		} else {
+			container.show = item.State.Running || item.State.Restarting
+		}
+		container.RenderContent()
+		//m.statsController.AddContainer(container.id)
+		itemList = append(itemList, container)
+		m.checkUpdateInProgress[container.id] = struct{}{}
+		cmds = append(cmds, CheckContainerUpdate(m.cli, container.id))
 	}
 	m.list.SetItems(itemList)
+	return tea.Batch(cmds...)
 }
 
-func (m *Model) updateContainer(id string) {
-	newContainer, err := m.client.Container(id)
+func (m *Model) updateContainer(msg cache.Event) tea.Cmd {
+	newContainer, err := m.cache.Container(msg.ActorID)
+
 	for i, item := range m.list.Items() {
-		if item.(ContainerItem).id == id {
+		if item.(ContainerItem).id == msg.ActorID {
 			switch err {
-			case docker.ErrContainerNotFound:
+			case cache.ErrContainerNotFound:
+				//m.statsController.RemoveContainer(id)
 				m.list.RemoveItem(i)
 			case nil:
-				m.list.SetItem(i, NewContainerItem(newContainer))
+				var cmd tea.Cmd = nil
+				container := NewContainerItem(newContainer)
+				if item.(ContainerItem).update != nil {
+					container.update = item.(ContainerItem).update
+				} else {
+					if _, ok := m.checkUpdateInProgress[container.id]; !ok {
+						m.checkUpdateInProgress[container.id] = struct{}{}
+						cmd = CheckContainerUpdate(m.cli, container.id)
+					}
+				}
+				container.RenderContent()
+				m.list.SetItem(i, container)
+				return cmd
 			}
-			return
+			return nil
 		}
 	}
+	container := NewContainerItem(newContainer)
+	container.RenderContent()
 	items := m.list.Items()
-	items = append(items, NewContainerItem(newContainer))
+	items = append(items, container)
 	slices.SortFunc(items, func(a, b list.Item) int {
 		return strings.Compare(a.(ContainerItem).Name(), b.(ContainerItem).Name())
 	})
+	//m.statsController.AddContainer(container.id)
 	m.list.SetItems(items)
+	m.checkUpdateInProgress[container.id] = struct{}{}
+	return CheckContainerUpdate(m.cli, container.id)
+}
+
+func (m *Model) ToggleAll() {
+	m.all = !m.all
+
+	for i, item := range m.list.Items() {
+		if c, ok := item.(ContainerItem); ok {
+			if m.all {
+				c.show = true
+				m.list.SetItem(i, c)
+			} else {
+				c.show = false
+				if c.state == container.StateRunning || c.state == container.StateRestarting {
+					c.show = true
+				}
+				m.list.SetItem(i, c)
+			}
+		}
+	}
 }

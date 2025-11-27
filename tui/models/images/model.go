@@ -9,12 +9,14 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/kdruelle/gmd/docker"
+	"github.com/kdruelle/gmd/docker/cache"
+	"github.com/kdruelle/gmd/docker/client"
 	style "github.com/kdruelle/gmd/tui/styles"
 )
 
 type Model struct {
-	client *docker.Monitor
+	cli    *client.Client
+	cache  *cache.Cache
 	list   list.Model
 	loaded bool
 	unused bool
@@ -37,7 +39,7 @@ var keyMap = &listKeyMap{
 	),
 }
 
-func New(client *docker.Monitor) Model {
+func New(cli *client.Client, cache *cache.Cache) Model {
 
 	items := []list.Item{}
 
@@ -51,8 +53,9 @@ func New(client *docker.Monitor) Model {
 	}
 
 	return Model{
-		client: client,
-		list:   l,
+		cli:   cli,
+		cache: cache,
+		list:  l,
 		//imgs:   images,
 	}
 }
@@ -99,13 +102,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = style.ActiveItem.Render("Image supprimée")
 		}
 		m.applyFilter()
-	case docker.Event:
-		if msg.EventType == docker.ImageEventType {
+	case cache.Event:
+		if msg.EventType == cache.ImagesLoadedEventType {
 			if !m.loaded {
 				m.loaded = true
 			}
-			log.Printf("received image event: %v", msg)
+			log.Printf("received images loaded event: %+v", msg)
 			m.applyFilter()
+		}
+		if msg.EventType == cache.ImageEventType {
+			if m.loaded {
+				log.Printf("received image event: %+v", msg)
+				m.updateImage(msg.ActorID)
+				// m.applyFilter()
+			}
+
 		}
 	}
 
@@ -129,14 +140,14 @@ func (m *Model) applyFilter() {
 
 	log.Printf("image applying filter")
 
-	var images []docker.Image
+	var images []client.Image
 	if m.unused {
-		images = m.client.ImagesUnused()
+		images = m.cache.ImagesUnused()
 	} else {
-		images = m.client.Images()
+		images = m.cache.Images()
 	}
 
-	slices.SortFunc(images, func(a, b docker.Image) int {
+	slices.SortFunc(images, func(a, b client.Image) int {
 		return strings.Compare(a.Tag(), b.Tag())
 	})
 
@@ -147,4 +158,25 @@ func (m *Model) applyFilter() {
 
 	}
 	m.list.SetItems(itemList)
+}
+
+func (m *Model) updateImage(id string) {
+	newImage, err := m.cache.Image(id)
+	for i, item := range m.list.Items() {
+		if item.(ImageItem).ID == id {
+			switch err {
+			case cache.ErrImageNotFound:
+				m.list.RemoveItem(i)
+			case nil:
+				m.list.SetItem(i, ImageItem(newImage))
+			}
+			return
+		}
+	}
+	items := m.list.Items()
+	items = append(items, ImageItem(newImage))
+	slices.SortFunc(items, func(a, b list.Item) int {
+		return strings.Compare(a.(ImageItem).Title(), b.(ImageItem).Title())
+	})
+	m.list.SetItems(items)
 }

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/kdruelle/gmd/docker"
+	"github.com/kdruelle/gmd/docker/client"
 	style "github.com/kdruelle/gmd/tui/styles"
 )
 
@@ -22,7 +22,7 @@ type createResponse struct {
 
 type Controller struct {
 	m          sync.RWMutex
-	client     *docker.Monitor
+	cli        *client.Client
 	updateChan chan ControllerUpdateMsg
 
 	order  []string
@@ -30,12 +30,16 @@ type Controller struct {
 	lines  []string
 }
 
-func New(client *docker.Monitor, updateChan chan ControllerUpdateMsg) *Controller {
+func New(client *client.Client) *Controller {
 	c := Controller{
-		client:     client,
-		updateChan: updateChan,
+		cli:        client,
+		updateChan: make(chan ControllerUpdateMsg, 10),
 	}
 	return &c
+}
+
+func (c *Controller) Events() <-chan ControllerUpdateMsg {
+	return c.updateChan
 }
 
 func (c *Controller) GetLines() []string {
@@ -44,18 +48,18 @@ func (c *Controller) GetLines() []string {
 	return c.lines
 }
 
-func (c *Controller) StartUpdate(container docker.Container) {
+func (c *Controller) StartUpdate(container client.Container) {
 	c.order = []string{}
 	c.layers = make(map[string]string)
 	go c.updateContainer(container)
 }
 
-func (c *Controller) updateContainer(container docker.Container) {
+func (c *Controller) updateContainer(container client.Container) {
 
 	done := make(chan error)
 	defer close(done)
 
-	err := c.client.PullImageWithProgress(context.Background(), container.Config.Image, func(msg map[string]interface{}) {
+	err := c.cli.PullImageWithProgress(context.Background(), container.Config.Image, func(msg map[string]interface{}) {
 		var ok bool
 		var status, layerId string
 
@@ -102,7 +106,7 @@ func (c *Controller) updateContainer(container docker.Container) {
 		return
 	}
 
-	containerConfig, err := c.client.GetContainerRawConfig(container.ID)
+	containerConfig, err := c.cli.GetContainerRawConfig(container.ID)
 	if err != nil {
 		log.Printf("Error get config for container %s : %v", container.ID, err)
 		c.m.Lock()
@@ -114,7 +118,7 @@ func (c *Controller) updateContainer(container docker.Container) {
 
 	add := true
 	err = spinUntilDone(func() error {
-		return c.client.StopContainer(container.ID)
+		return c.cli.StopContainer(container.ID)
 	}, func(frame string) {
 		c.m.Lock()
 		if add {
@@ -142,7 +146,7 @@ func (c *Controller) updateContainer(container docker.Container) {
 
 	add = true
 	err = spinUntilDone(func() error {
-		return c.client.DeleteContainer(container.ID)
+		return c.cli.DeleteContainer(container.ID)
 	}, func(frame string) {
 		c.m.Lock()
 		if add {
@@ -170,7 +174,7 @@ func (c *Controller) updateContainer(container docker.Container) {
 
 	add = true
 	cr := spinUntilDone(func() createResponse {
-		r, e := c.client.CreateContainerFromConfig(containerConfig)
+		r, e := c.cli.CreateContainerFromConfig(containerConfig)
 		return createResponse{Resp: r, Err: e}
 	}, func(frame string) {
 		c.m.Lock()
@@ -201,7 +205,7 @@ func (c *Controller) updateContainer(container docker.Container) {
 
 	add = true
 	err = spinUntilDone(func() error {
-		return c.client.StartContainer(cr.Resp.ID)
+		return c.cli.StartContainer(cr.Resp.ID)
 	}, func(frame string) {
 		c.m.Lock()
 		if add {
@@ -227,6 +231,11 @@ func (c *Controller) updateContainer(container docker.Container) {
 	c.m.Unlock()
 	c.updateChan <- ControllerUpdateMsg{}
 
+	c.m.Lock()
+	c.lines = append(c.lines, "update complete, press enter to close...")
+	c.m.Unlock()
+
+	close(c.updateChan)
 	// notification := listStatusMessageStyle.Render(fmt.Sprintf("Updated %s", containerConfig.Name))
 	// notificationChan <- NewNotification(activeTab, notification)
 

@@ -11,13 +11,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var version = ""
+var buildDate = ""
+
 var (
 	debugfile string
 	rootCmd   = &cobra.Command{
 		Use:     "gmd",
 		Short:   "TUI to manage docker objects",
 		Long:    `The Definitive TUI to manage docker objects with ease.`,
-		Version: "0.1.0",
+		Version: version + " (" + buildDate + ")",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return tui.Start(debugfile)
 		},

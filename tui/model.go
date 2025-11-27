@@ -2,9 +2,11 @@ package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/kdruelle/gmd/docker"
+	"github.com/kdruelle/gmd/docker/cache"
+	"github.com/kdruelle/gmd/docker/client"
 	"github.com/kdruelle/gmd/tui/commands"
 	"github.com/kdruelle/gmd/tui/componants"
+	"github.com/kdruelle/gmd/tui/models/containers"
 	"github.com/kdruelle/gmd/tui/models/containerupdate"
 	"github.com/kdruelle/gmd/tui/models/maintab"
 )
@@ -14,17 +16,23 @@ import (
 // ---------------------------------------------------
 
 type Model struct {
-	client *docker.Monitor
-	stack  []tea.Model
+	cli         *client.Client
+	dockerCache *cache.Cache
+	stack       []tea.Model
+
+	screeWidth   int
+	screenHeight int
 }
 
 func NewModel() Model {
-	client, _ := docker.NewMonitor()
+	cli, _ := client.NewClient()
+	cache := cache.NewCache(cli)
 
-	mainModel := maintab.New(client)
+	mainModel := maintab.New(cli, cache)
 
 	m := Model{
-		client: client,
+		cli:         cli,
+		dockerCache: cache,
 	}
 
 	m.stack = []tea.Model{
@@ -37,8 +45,8 @@ func NewModel() Model {
 func (m Model) Init() tea.Cmd {
 	top := m.stack[len(m.stack)-1]
 	return tea.Batch(
-		StartMonitor(m.client),
-		WaitDockerEvent(m.client.Events()),
+		StartMonitorCache(m.dockerCache),
+		WaitDockerEvent(m.dockerCache.Events()),
 		top.Init(),
 	)
 }
@@ -50,6 +58,10 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
+
+	case tea.WindowSizeMsg:
+		m.screeWidth = msg.Width
+		m.screenHeight = msg.Height
 
 	case tea.KeyMsg:
 
@@ -63,21 +75,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
-	case docker.Event:
+	case cache.Event:
 		var cmd tea.Cmd
 		m.stack[0], cmd = m.stack[0].Update(msg)
 
-		return m, tea.Batch(WaitDockerEvent(m.client.Events()), cmd)
+		return m, tea.Batch(WaitDockerEvent(m.dockerCache.Events()), cmd)
 	case commands.UpdateContainerMsg:
-		u := containerupdate.New(msg.Container, m.client)
+		u := containerupdate.New(msg.Container, m.cli)
 		cmd := u.Init()
 		m.stack = append(m.stack, u)
-		return m, tea.Batch(tea.ExitAltScreen, cmd)
+		return m, tea.Batch( /*tea.ExitAltScreen,*/ cmd, SendResize(m.screeWidth, m.screenHeight))
+	case containers.ContainerUpdateMsg:
+		var cmd tea.Cmd
+		m.stack[0], cmd = m.stack[0].Update(msg)
+		return m, cmd
 	case commands.BackMsg:
 		if len(m.stack) > 1 {
 			m.stack = m.stack[:len(m.stack)-1] // pop
 		}
-		return m, tea.EnterAltScreen
+		return m, nil //tea.EnterAltScreen
 	}
 
 	top := m.stack[len(m.stack)-1]

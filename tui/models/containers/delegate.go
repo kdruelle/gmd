@@ -42,5 +42,5 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		content = style.SelectedItem.Render(content)
 	}
 
-	fmt.Fprint(w, lipgloss.JoinHorizontal(lipgloss.Center, content, " ", c.statsContent))
+	fmt.Fprint(w, lipgloss.JoinHorizontal(lipgloss.Center, content, " " /*, c.statsContent*/))
 }

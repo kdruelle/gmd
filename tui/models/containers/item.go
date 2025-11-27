@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/docker/docker/api/types/container"
 	"github.com/kdruelle/gmd/docker"
+	"github.com/kdruelle/gmd/docker/client"
 	style "github.com/kdruelle/gmd/tui/styles"
 )
 
@@ -14,40 +15,45 @@ type ContainerItem struct {
 	id           string
 	name         string
 	state        container.ContainerState
-	update       bool
+	update       *bool
 	content      string
 	statsContent string
+
+	show bool
 }
 
-func NewContainerItem(dc docker.Container) ContainerItem {
+func NewContainerItem(dc client.Container) ContainerItem {
 	c := ContainerItem{
-		id:     dc.ID,
-		name:   dc.Name,
-		state:  dc.State.Status,
-		update: dc.Update,
+		id:    dc.ID,
+		name:  dc.Name,
+		state: dc.State.Status,
 	}
+
+	// if dc.Stats.ID != "" {
+
+	// 	cpuPct := docker.CPUPercent(dc.Stats)
+	// 	// 	//memPct := docker.MemoryPercent(c.Stats)
+	// 	usedMem := dc.Stats.MemoryStats.Usage
+	// 	limitMem := dc.Stats.MemoryStats.Limit
+
+	// 	cpuBar := htopCpuBar(cpuPct, 20) // 20 = largeur de la barre
+	// 	memBar := htopMemBar(usedMem, limitMem, 20)
+
+	// 	statsContent = lipgloss.JoinHorizontal(
+	// 		lipgloss.Left,
+	// 		cpuBar, "   ", memBar,
+	// 	)
+	// }
+
+	return c
+}
+
+func (c *ContainerItem) RenderContent() {
 
 	title := style.Title.Render(c.Name())
 	shortID := style.Subtitle.Render(c.ShortID())
 
 	statsContent := "CPU[ -- ]   RAM[ -- ]"
-
-	if dc.Stats.ID != "" {
-
-		cpuPct := docker.CPUPercent(dc.Stats)
-		// 	//memPct := docker.MemoryPercent(c.Stats)
-		usedMem := dc.Stats.MemoryStats.Usage
-		limitMem := dc.Stats.MemoryStats.Limit
-
-		cpuBar := htopCpuBar(cpuPct, 20) // 20 = largeur de la barre
-		memBar := htopMemBar(usedMem, limitMem, 20)
-
-		statsContent = lipgloss.JoinHorizontal(
-			lipgloss.Left,
-			cpuBar, "   ", memBar,
-		)
-	}
-
 	c.statsContent = col3Style.Render(statsContent)
 
 	col1 := lipgloss.JoinVertical(lipgloss.Left, title, shortID)
@@ -57,8 +63,25 @@ func NewContainerItem(dc docker.Container) ContainerItem {
 	col2 = col2Style.Render(col2)
 
 	c.content = lipgloss.JoinHorizontal(lipgloss.Center, col1, " ", col2)
+}
 
-	return c
+func (c *ContainerItem) RenderStats(stats container.StatsResponse) {
+	if stats.ID == "" {
+		c.statsContent = "CPU[ -- ]   RAM[ -- ]"
+	}
+
+	cpuPct := docker.CPUPercent(stats)
+	//memPct := docker.MemoryPercent(c.Stats)
+	usedMem := stats.MemoryStats.Usage
+	limitMem := stats.MemoryStats.Limit
+
+	cpuBar := htopCpuBar(cpuPct, 20) // 20 = largeur de la barre
+	memBar := htopMemBar(usedMem, limitMem, 20)
+
+	c.statsContent = lipgloss.JoinHorizontal(
+		lipgloss.Left,
+		cpuBar, "   ", memBar,
+	)
 }
 
 func (c ContainerItem) Name() string {
@@ -92,7 +115,10 @@ func (c ContainerItem) Status() string {
 }
 
 func (c ContainerItem) UpdateFlag() string {
-	if c.update {
+	if c.update == nil {
+		return UpdateUnavailable
+	}
+	if *c.update {
 		return UpdateAvailableFlag
 	} else {
 		return UpToDateFlag

@@ -18,7 +18,7 @@ type DeleteImageMsg struct {
 
 func (m Model) FetchImagesCmd() tea.Cmd {
 	return func() tea.Msg {
-		images := m.client.Images()
+		images := m.cache.Images()
 		imagesItems := make([]ImageItem, len(images))
 		for i, img := range images {
 			imagesItems[i] = ImageItem(img)
@@ -29,7 +29,7 @@ func (m Model) FetchImagesCmd() tea.Cmd {
 
 func (m Model) DeleteImagesCmd(id string) tea.Cmd {
 	return func() tea.Msg {
-		err := m.client.DeleteImage(context.Background(), id)
+		err := m.cli.DeleteImage(context.Background(), id)
 		if err != nil {
 			return DeleteImageMsg{ID: id, Err: err}
 		}

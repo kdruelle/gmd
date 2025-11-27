@@ -1,32 +1,40 @@
 package tui
 
 import (
-	"time"
-
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/kdruelle/gmd/docker"
+	"github.com/kdruelle/gmd/docker/cache"
 )
 
-type MonitorStartMsg struct {
+type CacheStartMsg struct {
+	Err error
 }
 
-func StartMonitor(m *docker.Monitor) tea.Cmd {
+func StartMonitorCache(m *cache.Cache) tea.Cmd {
 	return func() tea.Msg {
-		m.Start()
-		return MonitorStartMsg{}
+		err := m.LoadAndStart()
+		return CacheStartMsg{Err: err}
 	}
 }
 
-func WaitDockerEvent(ch <-chan docker.Event) tea.Cmd {
+func WaitDockerEvent(ch <-chan cache.Event) tea.Cmd {
 	return func() tea.Msg {
-		var now = time.Now()
-		var e docker.Event
+		//var now = time.Now()
+		var e cache.Event
 
 		for {
 			e = <-ch
-			if e.EventType != docker.ContainerStatsEventType || time.Since(now) > 1*time.Second {
-				return e
-			}
+			//if e.EventType != cache.ContainerStatsEventType || time.Since(now) > 1*time.Second {
+			return e
+			//}
+		}
+	}
+}
+
+func SendResize(width, height int) tea.Cmd {
+	return func() tea.Msg {
+		return tea.WindowSizeMsg{
+			Width:  width,
+			Height: height,
 		}
 	}
 }

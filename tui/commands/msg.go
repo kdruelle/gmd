@@ -1,11 +1,13 @@
 package commands
 
-import "github.com/kdruelle/gmd/docker"
+import (
+	"github.com/kdruelle/gmd/docker/client"
+)
 
 type BackMsg struct{}
 
 type UpdateContainerMsg struct {
-	Container docker.Container
+	Container client.Container
 }
 
 // type PullStartedMsg struct {
