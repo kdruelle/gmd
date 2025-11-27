@@ -3,6 +3,7 @@ package containerupdate
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -48,7 +49,7 @@ func New(c types.Container, client *client.Client) Model {
 		Foreground(lipgloss.Color("#88C0D0")).
 		Width(90).
 		Align(lipgloss.Center).
-		Render(fmt.Sprintf("Updating container %s ...", m.container.Name))
+		Render(fmt.Sprintf("Updating container %s ...", strings.TrimPrefix(m.container.Name, "/")))
 
 	m.titleBlock = lipgloss.JoinVertical(
 		lipgloss.Center,
