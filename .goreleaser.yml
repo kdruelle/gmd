@@ -9,7 +9,7 @@ builds:
     ldflags:
       - >
         -X github.com/kdruelle/gmd/cmd.version={{ .Version }}
-        -X github.com/kdruelle/gmd/cmd.buildDate={{ .Date | date "02 Jan 2006" }}
+        -X github.com/kdruelle/gmd/cmd.buildDate={{ .Now.Format "2006-01-02" }}
     goos:
       - linux
       - darwin
