@@ -6,6 +6,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	style "github.com/kdruelle/gmd/tui/styles"
 )
 
 type ItemDelegate struct {
@@ -29,18 +31,23 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 		return
 	}
 
-	title := c.Title()
-	desc := c.Description()
+	title := style.Title().Render(c.Title())
+	desc := style.Subtitle().Render(c.Description())
+
+	content := lipgloss.JoinVertical(lipgloss.Left, title, desc)
 
 	// On récupère quand même l'état sélectionné du delegate original
 	if index == m.Index() {
-		title = d.Styles.SelectedTitle.Render(title)
-		desc = d.Styles.SelectedDesc.Render(desc)
-	} else {
-		title = d.Styles.NormalTitle.Render(title)
-		desc = d.Styles.NormalDesc.Render(desc)
+		content = style.ListSelectedLine().Inherit(style.Bold()).Render(content)
+		// title = d.Styles.SelectedTitle.Render(title)
+		// desc = d.Styles.SelectedDesc.Render(desc)
 	}
+	// else {
+	// 	title = d.Styles.NormalTitle.Render(title)
+	// 	desc = d.Styles.NormalDesc.Render(desc)
+	// }
 
 	// Ta customisation ici : lipgloss partout, couleurs, emoji, flair…
-	_, _ = fmt.Fprintf(w, "%s\n%s", title, desc)
+	//_, _ = fmt.Fprintf(w, "%s\n%s", title, desc)
+	fmt.Fprint(w, lipgloss.JoinHorizontal(lipgloss.Center, content, " " /*, c.statsContent*/))
 }

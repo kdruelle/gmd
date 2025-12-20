@@ -1,7 +1,7 @@
 package containers
 
 import (
-	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -18,15 +18,36 @@ type ContainerItem struct {
 	update       *bool
 	content      string
 	statsContent string
+	image        string
+	ip4Address   string
+	ip6Address   string
 
 	show bool
 }
 
 func NewContainerItem(dc types.Container) ContainerItem {
 	c := ContainerItem{
-		id:    dc.ID,
-		name:  dc.Name,
-		state: dc.State.Status,
+		id:         dc.ID,
+		name:       dc.Name,
+		state:      dc.State.Status,
+		image:      dc.Config.Image,
+		ip4Address: "-",
+		ip6Address: "-",
+	}
+
+	keys := make([]string, 0, len(dc.NetworkSettings.Networks))
+	for k := range dc.NetworkSettings.Networks {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		net := dc.NetworkSettings.Networks[k]
+		if net.IPAddress != "" {
+			c.ip4Address = net.IPAddress
+		}
+		if net.GlobalIPv6Address != "" {
+			c.ip6Address = net.GlobalIPv6Address
+		}
 	}
 
 	// if dc.Stats.ID != "" {
@@ -50,19 +71,48 @@ func NewContainerItem(dc types.Container) ContainerItem {
 
 func (c *ContainerItem) RenderContent() {
 
-	title := style.Title.Render(c.Name())
-	shortID := style.Subtitle.Render(c.ShortID())
+	title := style.Title().Render(c.Name())
+	shortID := style.Subtitle().Render(c.ShortID())
 
-	statsContent := "CPU[ -- ]   RAM[ -- ]"
-	c.statsContent = col3Style.Render(statsContent)
+	// statsContent := "CPU[ -- ]   RAM[ -- ]"
+	// c.statsContent = col3Style.Render(statsContent)
 
 	col1 := lipgloss.JoinVertical(lipgloss.Left, title, shortID)
 	col2 := lipgloss.JoinHorizontal(lipgloss.Center, c.UpdateFlag(), " ", c.Status())
+	col3 := lipgloss.JoinHorizontal(lipgloss.Center, " ", style.Subtitle().Render(c.image))
+	col4 := lipgloss.JoinVertical(lipgloss.Left, style.Normal().Render(c.ip4Address), style.Normal().Render(c.ip6Address))
 
-	col1 = col1Style.Render(col1)
-	col2 = col2Style.Render(col2)
+	col1 = colNameStyle.Render(col1)
+	col2 = colStateStyle.Render(col2)
+	col3 = colImageStyle.Render(col3)
+	col4 = colAddressStyle.Render(col4)
 
-	c.content = lipgloss.JoinHorizontal(lipgloss.Center, col1, " ", col2)
+	c.content = lipgloss.JoinHorizontal(lipgloss.Center, col1, " ", col2, " ", col3, " ", col4)
+}
+
+func (c *ContainerItem) Render(selected bool) string {
+
+	title := style.Title().Render(c.Name())
+	shortID := style.Subtitle().Render(c.ShortID())
+
+	col1 := lipgloss.JoinVertical(lipgloss.Left, title, shortID)
+	col2 := lipgloss.JoinHorizontal(lipgloss.Center, c.UpdateFlag(), " ", c.Status())
+	col3 := lipgloss.JoinHorizontal(lipgloss.Center, " ", style.Subtitle().Render(c.image))
+	col4 := lipgloss.JoinVertical(lipgloss.Left, style.Normal().Render(c.ip4Address), style.Normal().Render(c.ip6Address))
+
+	col1 = colNameStyle.Render(col1)
+	col2 = colStateStyle.Render(col2)
+	col3 = colImageStyle.Render(col3)
+	col4 = colAddressStyle.Render(col4)
+
+	if selected {
+		col1 = style.Bold().Render(col1)
+		col2 = style.Bold().Render(col2)
+		col3 = style.Bold().Render(col3)
+		col4 = style.Bold().Render(col4)
+	}
+
+	return lipgloss.JoinHorizontal(lipgloss.Center, col1, " ", col2, " ", col3, " ", col4)
 }
 
 // func (c *ContainerItem) RenderStats(stats container.StatsResponse) {
@@ -213,77 +263,77 @@ func (c ContainerItem) FilterValue() string { return c.Name() }
 // 	)
 // }
 
-func htopCpuBar(pct float64, width int) string {
-	if pct < 0 {
-		pct = 0
-	}
-	if pct > 100 {
-		pct = 100
-	}
+// func htopCpuBar(pct float64, width int) string {
+// 	if pct < 0 {
+// 		pct = 0
+// 	}
+// 	if pct > 100 {
+// 		pct = 100
+// 	}
 
-	ratio := pct / 100
-	filled := int(ratio * float64(width))
+// 	ratio := pct / 100
+// 	filled := int(ratio * float64(width))
 
-	var color lipgloss.AdaptiveColor
-	switch {
-	case ratio < 0.50:
-		color = style.ColorSuccess
-	case ratio < 0.80:
-		color = style.ColorWarning
-	default:
-		color = style.ColorDanger
-	}
+// 	var color lipgloss.AdaptiveColor
+// 	switch {
+// 	case ratio < 0.50:
+// 		color = style.ColorSuccess()
+// 	case ratio < 0.80:
+// 		color = style.ColorWarning()
+// 	default:
+// 		color = style.ColorDanger()
+// 	}
 
-	style := lipgloss.NewStyle().Foreground(color)
+// 	style := lipgloss.NewStyle().Foreground(color)
 
-	return fmt.Sprintf(
-		"CPU[%s%s %3.0f%%]",
-		style.Render(strings.Repeat("|", filled)),
-		strings.Repeat(" ", width-filled),
-		pct,
-	)
-}
+// 	return fmt.Sprintf(
+// 		"CPU[%s%s %3.0f%%]",
+// 		style.Render(strings.Repeat("|", filled)),
+// 		strings.Repeat(" ", width-filled),
+// 		pct,
+// 	)
+// }
 
-func htopMemBar(used, total uint64, width int) string {
-	title := style.ActiveItem.Render("Mem")
-	if total == 0 {
-		return "Mem[ no limit ]"
-	}
+// func htopMemBar(used, total uint64, width int) string {
+// 	title := style.ActiveItem.Render("Mem")
+// 	if total == 0 {
+// 		return "Mem[ no limit ]"
+// 	}
 
-	usedGB := float64(used) / (1024 * 1024 * 1024)
-	totalGB := float64(total) / (1024 * 1024 * 1024)
-	pct := usedGB / totalGB
+// 	usedGB := float64(used) / (1024 * 1024 * 1024)
+// 	totalGB := float64(total) / (1024 * 1024 * 1024)
+// 	pct := usedGB / totalGB
 
-	// Nombre de barres pleines
-	filled := int(float64(width) * pct)
-	if filled > width {
-		filled = width
-	}
+// 	// Nombre de barres pleines
+// 	filled := int(float64(width) * pct)
+// 	if filled > width {
+// 		filled = width
+// 	}
 
-	// Couleur selon seuil
-	var color lipgloss.AdaptiveColor
-	switch {
-	case pct < 0.50:
-		color = style.ColorSuccess
-	case pct < 0.80:
-		color = style.ColorWarning
-	default:
-		color = style.ColorDanger
-	}
+// 	// Couleur selon seuil
+// 	var color lipgloss.AdaptiveColor
+// 	switch {
+// 	case pct < 0.50:
+// 		color = style.ColorSuccess()
+// 	case pct < 0.80:
+// 		color = style.ColorWarning()
+// 	default:
+// 		color = style.ColorDanger()
+// 	}
 
-	style := lipgloss.NewStyle().Foreground(color)
+// 	style := lipgloss.NewStyle().Foreground(color)
 
-	bars := style.Render(strings.Repeat("|", filled))
-	padding := strings.Repeat(" ", width-filled)
+// 	bars := style.Render(strings.Repeat("|", filled))
+// 	padding := strings.Repeat(" ", width-filled)
 
-	return fmt.Sprintf(
-		"%s%s%s%s %.1fG/%.1fG%s",
-		title,
-		lipgloss.NewStyle().Width(1).Bold(true).Render("["),
-		bars,
-		padding,
-		usedGB,
-		totalGB,
-		lipgloss.NewStyle().Width(1).Bold(true).Render("]"),
-	)
-}
+// 	return fmt.Sprintf(
+// 		"%s%s%s%s %.1fG/%.1fG%s",
+// 		title,
+// 		lipgloss.NewStyle().Width(1).Bold(true).Render("["),
+// 		bars,
+// 		padding,
+// 		usedGB,
+// 		totalGB,
+// 		lipgloss.NewStyle().Width(1).Bold(true).Render("]"),
+// 	)
+// }

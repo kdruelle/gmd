@@ -144,7 +144,7 @@ func (c *Controller) updateContainer(container types.Container) {
 	}
 
 	c.m.Lock()
-	c.lines[len(c.lines)-1] = fmt.Sprintf("%s Stoping container: %s", style.ActiveItem.Render("✓"), containerName)
+	c.lines[len(c.lines)-1] = fmt.Sprintf("%s Stoping container: %s", style.Success().Render("✓"), containerName)
 	c.m.Unlock()
 	c.updateChan <- ControllerUpdateMsg{}
 
@@ -172,7 +172,7 @@ func (c *Controller) updateContainer(container types.Container) {
 	}
 
 	c.m.Lock()
-	c.lines[len(c.lines)-1] = fmt.Sprintf("%s Removing container: %s", style.ActiveItem.Render("✓"), containerName)
+	c.lines[len(c.lines)-1] = fmt.Sprintf("%s Removing container: %s", style.Success().Render("✓"), containerName)
 	c.m.Unlock()
 	c.updateChan <- ControllerUpdateMsg{}
 
@@ -203,7 +203,7 @@ func (c *Controller) updateContainer(container types.Container) {
 	}
 
 	c.m.Lock()
-	c.lines[len(c.lines)-1] = fmt.Sprintf("%s Creating container: %s", style.ActiveItem.Render("✓"), containerName)
+	c.lines[len(c.lines)-1] = fmt.Sprintf("%s Creating container: %s", style.Success().Render("✓"), containerName)
 	c.m.Unlock()
 	c.updateChan <- ControllerUpdateMsg{}
 
@@ -231,7 +231,7 @@ func (c *Controller) updateContainer(container types.Container) {
 	}
 
 	c.m.Lock()
-	c.lines[len(c.lines)-1] = fmt.Sprintf("%s Starting container: %s", style.ActiveItem.Render("✓"), containerName)
+	c.lines[len(c.lines)-1] = fmt.Sprintf("%s Starting container: %s", style.Success().Render("✓"), containerName)
 	c.m.Unlock()
 	c.updateChan <- ControllerUpdateMsg{}
 
@@ -268,7 +268,7 @@ func spinUntilDone[T any](
 			frame := spinner[index]
 			index = (index + 1) % len(spinner)
 
-			updateLine(style.Spinner.Render(frame))
+			updateLine(style.Spinner().Render(frame))
 		}
 	}
 }

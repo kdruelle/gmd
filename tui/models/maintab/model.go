@@ -117,7 +117,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left,
 		m.viewTabs(),
-		style.Separator.Render("────────────────────────────────────────────────────────────"),
+		style.Normal().Bold(true).Render("────────────────────────────────────────────────────────────"),
 		m.viewContent(),
 	)
 }
@@ -125,15 +125,15 @@ func (m Model) View() string {
 func (m Model) viewTabs() string {
 
 	var (
-		tabImages     = style.InactiveItem.Render(" Images ")
-		tabContainers = style.InactiveItem.Render(" Containers ")
+		tabImages     = style.Inactive().Render(" Images ")
+		tabContainers = style.Inactive().Render(" Containers ")
 	)
 
 	switch m.activeTab {
 	case imagesTabIndex:
-		tabImages = style.ActiveItem.Render(" Images ")
+		tabImages = style.Success().Render(" Images ")
 	case containersTabIndex:
-		tabContainers = style.ActiveItem.Render(" Containers ")
+		tabContainers = style.Success().Render(" Containers ")
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Left, tabImages, tabContainers)

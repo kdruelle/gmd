@@ -1,17 +1,27 @@
 package containers
 
-import style "github.com/kdruelle/gmd/tui/styles"
-
-var (
-	UpdateUnavailable   = style.InactiveItem.Render("-")
-	UpToDateFlag        = style.ActiveItem.Render("✓")
-	UpdateAvailableFlag = style.DangerItem.Render("⚠")
+import (
+	"github.com/charmbracelet/lipgloss"
+	style "github.com/kdruelle/gmd/tui/styles"
 )
 
 var (
-	ContainerRuningState     = style.ActiveItem.Render("running")
-	ContainerExitedState     = style.DangerItem.Render("exited")
-	ContainerCreatedState    = style.InactiveItem.Render("created")
-	ContainerPausedState     = style.InactiveItem.Render("paused")
-	ContainerRestartingState = style.WarningItem.Render("restarting")
+	colNameStyle    = lipgloss.NewStyle().Width(40)
+	colStateStyle   = lipgloss.NewStyle().Width(20)
+	colImageStyle   = lipgloss.NewStyle().Width(70)
+	colAddressStyle = lipgloss.NewStyle().Width(40)
+)
+
+var (
+	UpdateUnavailable   = style.Inactive().Render("-")
+	UpToDateFlag        = style.Success().Render("✓")
+	UpdateAvailableFlag = style.Danger().Render("⚠")
+)
+
+var (
+	ContainerRuningState     = style.Success().Render("running")
+	ContainerExitedState     = style.Danger().Render("exited")
+	ContainerCreatedState    = style.Inactive().Render("created")
+	ContainerPausedState     = style.Inactive().Render("paused")
+	ContainerRestartingState = style.Warning().Render("restarting")
 )

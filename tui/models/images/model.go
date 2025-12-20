@@ -92,15 +92,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.applyFilter()
 			return m, nil
 		case key.Matches(msg, keyMap.delete):
-			m.status = style.StatusBar.Render("Deleting image " + m.list.SelectedItem().(ImageItem).Title())
+			m.status = style.StatusBar().Render("Deleting image " + m.list.SelectedItem().(ImageItem).Title())
 			return m, m.DeleteImagesCmd(m.list.SelectedItem().(ImageItem).ID)
 		}
 
 	case DeleteImageMsg:
 		if msg.Err != nil {
-			m.status = style.DangerItem.Render(msg.Err.Error())
+			m.status = style.Danger().Render(msg.Err.Error())
 		} else {
-			m.status = style.ActiveItem.Render("Image supprimée")
+			m.status = style.Success().Render("Image supprimée")
 		}
 		m.applyFilter()
 	case cache.Event:

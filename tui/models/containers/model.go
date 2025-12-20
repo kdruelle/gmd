@@ -139,7 +139,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keyMap.restartContainer):
 			if c, ok := m.list.SelectedItem().(ContainerItem); ok && c.state == container.StateRunning {
 				m.updateContainerActionState(c.id, container.StateRestarting)
-				m.status = style.StatusBar.Render("Restarting container " + m.list.SelectedItem().(ContainerItem).name)
+				m.status = style.StatusBar().Render("Restarting container " + m.list.SelectedItem().(ContainerItem).name)
 				return m, commands.ContainerCmd(m.cli, commands.RestartContainerAction, c.id)
 			}
 			return m, nil
@@ -206,7 +206,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		delete(m.checkUpdateInProgress, msg.ContainerID)
 	case commands.ContainerActionMsg:
 		if msg.Err != nil {
-			m.status = style.DangerItem.Render(msg.Err.Error())
+			m.status = style.Danger().Render(msg.Err.Error())
 		} else {
 			m.status = ""
 			m.updateContainerActionState(msg.ContainerID, "")

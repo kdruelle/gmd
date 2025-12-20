@@ -10,12 +10,6 @@ import (
 	style "github.com/kdruelle/gmd/tui/styles"
 )
 
-var (
-	col1Style = lipgloss.NewStyle().Width(30)
-	col2Style = lipgloss.NewStyle().Width(20)
-	col3Style = lipgloss.NewStyle().Width(90)
-)
-
 type ItemDelegate struct {
 	list.DefaultDelegate
 }
@@ -38,8 +32,16 @@ func (d ItemDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	}
 
 	content := c.content
+	//prefix := " "
 	if index == m.Index() {
-		content = style.SelectedItem.Render(content)
+		content = c.Render(true)
+		content = style.ListSelectedLine().Inherit(style.Bold()).Render(content)
+		// content = lipgloss.JoinHorizontal(
+		// 	0,
+		// 	style.SelectedBar.Render("▍ "),
+		// 	style.SelectedLine.Render(content),
+		// )
+		//prefix = style.SelectedBar.Render(lipgloss.JoinVertical(lipgloss.Center, "▍ ", "▍ "))
 	}
 
 	fmt.Fprint(w, lipgloss.JoinHorizontal(lipgloss.Center, content, " " /*, c.statsContent*/))
